@@ -481,13 +481,29 @@ function userMediaSet() {
     pushStatus("initenc", "Initializing encoder...");
     popStatus("getmic");
 
+    // Get the sample rate of the UserMedia audio
+    var sampleRate = userMedia.getAudioTracks()[0].getSettings().sampleRate;
+
     // Check whether we should be using WebAssembly
     var wa = isWebAssemblySupported();
 
+    // Do we need to (re-)create our AudioContext?
+    var mustCreateAc = true;
+    if (ac) {
+        /* Possibly re-create the AudioContext for a different sample rate, but
+         * not on Safari's broken implementation */
+        if (typeof AudioContext === "undefined" ||
+            ac.sampleRate === sampleRate) {
+            mustCreateAc = false;
+        } else {
+            ac.close();
+        }
+    }
+
     // Create our AudioContext if needed
-    if (!ac) {
+    if (mustCreateAc) {
         try {
-            ac = new AudioContext();
+            ac = new AudioContext({sampleRate: sampleRate});
         } catch (ex) {
             // Try Apple's, and if not that, nothing left to try, so crash
             ac = new webkitAudioContext();
